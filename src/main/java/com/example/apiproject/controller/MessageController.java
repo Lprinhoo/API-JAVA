@@ -1,8 +1,10 @@
 package com.example.apiproject.controller;
 
+import com.example.apiproject.model.Message;
+import com.example.apiproject.repository.MessageRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,24 +13,24 @@ import java.util.Map;
 @RequestMapping("/")
 public class MessageController {
 
-    private List<Map<String, String>> messages = new ArrayList<>();
+    @Autowired
+    private MessageRepository messageRepository;
 
     @GetMapping
     public Map<String, String> healthCheck() {
         Map<String, String> response = new HashMap<>();
         response.put("status", "online");
-        response.put("message", "API Spring Boot no Railway funcionando!");
+        response.put("message", "API Spring Boot no Railway conectada ao PostgreSQL!");
         return response;
     }
 
     @GetMapping("api/messages")
-    public List<Map<String, String>> getMessages() {
-        return messages;
+    public List<Message> getMessages() {
+        return messageRepository.findAll();
     }
 
     @PostMapping("api/messages")
-    public Map<String, String> addMessage(@RequestBody Map<String, String> payload) {
-        messages.add(payload);
-        return payload;
+    public Message addMessage(@RequestBody Message message) {
+        return messageRepository.save(message);
     }
 }
