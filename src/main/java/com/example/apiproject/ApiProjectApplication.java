@@ -10,4 +10,5 @@ public class ApiProjectApplication {
 		SpringApplication.run(ApiProjectApplication.class, args);
 	}
 
+	// Pequena mudança para testar o deploy automático do Railway.
 }
