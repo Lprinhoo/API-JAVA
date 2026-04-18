@@ -10,15 +10,17 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/")
-@CrossOrigin(origins = "*")
 public class MessageController {
 
     @Autowired
@@ -49,40 +51,47 @@ public class MessageController {
     }
 
     @PostMapping("api/auth/google")
-    public ResponseEntity<?> authenticateGoogleUser(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
         try {
-            String idTokenString = payload.get("idToken");
-            
-            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+            String idToken = body.get("idToken");
+
+            if (idToken == null || idToken.isEmpty()) {
+                return ResponseEntity.badRequest().body("idToken é obrigatório");
+            }
+
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(), new GsonFactory())
                     .setAudience(Collections.singletonList(googleClientId))
                     .build();
 
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-            
-            if (idToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token inválido");
+            GoogleIdToken token = verifier.verify(idToken);
+
+            if (token == null) {
+                return ResponseEntity.status(401).body("Token inválido ou expirado");
             }
 
-            GoogleIdToken.Payload googlePayload = idToken.getPayload();
-            String googleId = googlePayload.getSubject();
-            String email = googlePayload.getEmail();
-            String name = (String) googlePayload.get("name");
-            String pictureUrl = (String) googlePayload.get("picture");
+            GoogleIdToken.Payload payload = token.getPayload();
 
-            UserProfile user = userProfileRepository.findByGoogleId(googleId)
+            String googleId = payload.getSubject();
+            String email    = payload.getEmail();
+            String name     = (String) payload.get("name");
+            String photoUrl = (String) payload.get("picture");
+
+            UserProfile user = userProfileRepository
+                    .findByGoogleId(googleId)
                     .orElse(new UserProfile());
 
             user.setGoogleId(googleId);
             user.setEmail(email);
             user.setName(name);
-            user.setPhotoUrl(pictureUrl);
+            user.setPhotoUrl(photoUrl);
 
             userProfileRepository.save(user);
 
             return ResponseEntity.ok(user);
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro na autenticação: " + e.getMessage());
+            return ResponseEntity.status(500).body("Erro interno: " + e.getMessage());
         }
     }
 }
