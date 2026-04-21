@@ -1,9 +1,7 @@
 package com.example.apiproject.controller;
 
-import com.example.apiproject.model.Message;
 import com.example.apiproject.model.UserProfile;
 import com.example.apiproject.model.Vehicle;
-import com.example.apiproject.repository.MessageRepository;
 import com.example.apiproject.repository.UserProfileRepository;
 import com.example.apiproject.repository.VehicleRepository;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -12,7 +10,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,10 +21,7 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/")
-public class MessageController {
-
-    @Autowired
-    private MessageRepository messageRepository;
+public class ApiController {
 
     @Autowired
     private UserProfileRepository userProfileRepository;
@@ -38,6 +32,8 @@ public class MessageController {
     @Value("${google.client.id}")
     private String googleClientId;
 
+    // ─── Health Check ────────────────────────────────────────────────────────
+
     @GetMapping
     public Map<String, String> healthCheck() {
         Map<String, String> response = new HashMap<>();
@@ -46,15 +42,7 @@ public class MessageController {
         return response;
     }
 
-    @GetMapping("api/messages")
-    public List<Message> getMessages() {
-        return messageRepository.findAll();
-    }
-
-    @PostMapping("api/messages")
-    public Message addMessage(@RequestBody Message message) {
-        return messageRepository.save(message);
-    }
+    // ─── Auth Google ─────────────────────────────────────────────────────────
 
     @PostMapping("api/auth/google")
     public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
@@ -101,38 +89,46 @@ public class MessageController {
         }
     }
 
+    // ─── Veículos ────────────────────────────────────────────────────────────
+
     @PostMapping("api/vehicles/{userId}")
-    public ResponseEntity<Vehicle> createVehicle(@PathVariable Long userId, @RequestBody Vehicle vehicle) {
-        return userProfileRepository.findById(userId).map(user -> {
-            vehicle.setUserProfile(user);
-            Vehicle savedVehicle = vehicleRepository.save(vehicle);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedVehicle);
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> addVehicle(@PathVariable Long userId,
+                                         @RequestBody Vehicle vehicle) {
+        return userProfileRepository.findById(userId)
+                .map(user -> {
+                    vehicle.setUserProfile(user);
+                    Vehicle saved = vehicleRepository.save(vehicle);
+                    return ResponseEntity.status(201).<Object>body(saved);
+                })
+                .orElse(ResponseEntity.status(404).body("Usuário não encontrado"));
     }
 
     @GetMapping("api/vehicles/{userId}")
-    public ResponseEntity<List<Vehicle>> getVehiclesByUser(@PathVariable Long userId) {
+    public ResponseEntity<List<Vehicle>> getVehicles(@PathVariable Long userId) {
         List<Vehicle> vehicles = vehicleRepository.findByUserProfileId(userId);
         return ResponseEntity.ok(vehicles);
     }
 
-    @DeleteMapping("api/vehicles/{vehicleId}")
-    public ResponseEntity<Void> deleteVehicle(@PathVariable Long vehicleId) {
-        if (vehicleRepository.existsById(vehicleId)) {
-            vehicleRepository.deleteById(vehicleId);
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
+    @PutMapping("api/vehicles/{vehicleId}")
+    public ResponseEntity<?> updateVehicle(@PathVariable Long vehicleId,
+                                            @RequestBody Vehicle vehicle) {
+        return vehicleRepository.findById(vehicleId)
+                .map(existing -> {
+                    existing.setMarca(vehicle.getMarca());
+                    existing.setAno(vehicle.getAno());
+                    existing.setPlaca(vehicle.getPlaca());
+                    Vehicle updated = vehicleRepository.save(existing);
+                    return ResponseEntity.ok().<Object>body(updated);
+                })
+                .orElse(ResponseEntity.status(404).body("Veículo não encontrado"));
     }
 
-    @PutMapping("api/vehicles/{vehicleId}")
-    public ResponseEntity<Vehicle> updateVehicle(@PathVariable Long vehicleId, @RequestBody Vehicle vehicleDetails) {
-        return vehicleRepository.findById(vehicleId).map(vehicle -> {
-            vehicle.setMarca(vehicleDetails.getMarca());
-            vehicle.setAno(vehicleDetails.getAno());
-            vehicle.setPlaca(vehicleDetails.getPlaca());
-            Vehicle updatedVehicle = vehicleRepository.save(vehicle);
-            return ResponseEntity.ok(updatedVehicle);
-        }).orElse(ResponseEntity.notFound().build());
+    @DeleteMapping("api/vehicles/{vehicleId}")
+    public ResponseEntity<?> deleteVehicle(@PathVariable Long vehicleId) {
+        if (!vehicleRepository.existsById(vehicleId)) {
+            return ResponseEntity.status(404).body("Veículo não encontrado");
+        }
+        vehicleRepository.deleteById(vehicleId);
+        return ResponseEntity.noContent().build();
     }
 }
