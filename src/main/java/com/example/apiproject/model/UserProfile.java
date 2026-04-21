@@ -1,6 +1,9 @@
 package com.example.apiproject.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "user_profile")
@@ -16,6 +19,10 @@ public class UserProfile {
     private String name;
     private String email;
     private String photoUrl;
+
+    @OneToMany(mappedBy = "userProfile", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<Vehicle> vehicles = new ArrayList<>();
 
     public UserProfile() {
     }
@@ -66,5 +73,13 @@ public class UserProfile {
 
     public void setPhotoUrl(String photoUrl) {
         this.photoUrl = photoUrl;
+    }
+
+    public List<Vehicle> getVehicles() {
+        return vehicles;
+    }
+
+    public void setVehicles(List<Vehicle> vehicles) {
+        this.vehicles = vehicles;
     }
 }
