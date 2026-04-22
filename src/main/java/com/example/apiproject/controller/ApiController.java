@@ -1,7 +1,8 @@
 package com.example.apiproject.controller;
 
-import com.example.apiproject.model.UserProfile;
-import com.example.apiproject.model.Vehicle;
+import com.example.apiproject.model.*;
+import com.example.apiproject.repository.AppointmentRepository;
+import com.example.apiproject.repository.OficinaRepository;
 import com.example.apiproject.repository.UserProfileRepository;
 import com.example.apiproject.repository.VehicleRepository;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -13,10 +14,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -28,6 +27,12 @@ public class ApiController {
 
     @Autowired
     private VehicleRepository vehicleRepository;
+
+    @Autowired
+    private OficinaRepository oficinaRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -129,6 +134,115 @@ public class ApiController {
             return ResponseEntity.status(404).body("Veículo não encontrado");
         }
         vehicleRepository.deleteById(vehicleId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ─── Oficinas ────────────────────────────────────────────────────────────
+
+    @GetMapping("api/oficinas")
+    public List<Oficina> getOficinas() {
+        return oficinaRepository.findAll();
+    }
+
+    @GetMapping("api/oficinas/{id}")
+    public ResponseEntity<Oficina> getOficinaById(@PathVariable Long id) {
+        return oficinaRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("api/oficinas")
+    public ResponseEntity<Oficina> createOficina(@RequestBody Oficina oficina) {
+        Oficina saved = oficinaRepository.save(oficina);
+        return ResponseEntity.status(201).body(saved);
+    }
+
+    @PutMapping("api/oficinas/{id}")
+    public ResponseEntity<?> updateOficina(@PathVariable Long id, @RequestBody Oficina details) {
+        return oficinaRepository.findById(id)
+                .map(oficina -> {
+                    oficina.setNome(details.getNome());
+                    oficina.setEndereco(details.getEndereco());
+                    oficina.setTelefone(details.getTelefone());
+                    oficina.setLatitude(details.getLatitude());
+                    oficina.setLongitude(details.getLongitude());
+                    oficina.setServicos(details.getServicos());
+                    Oficina updated = oficinaRepository.save(oficina);
+                    return ResponseEntity.ok().<Object>body(updated);
+                })
+                .orElse(ResponseEntity.status(404).body("Oficina não encontrada"));
+    }
+
+    @DeleteMapping("api/oficinas/{id}")
+    public ResponseEntity<Void> deleteOficina(@PathVariable Long id) {
+        if (!oficinaRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        oficinaRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ─── Agendamentos (Appointments) ─────────────────────────────────────────
+
+    @PostMapping("api/appointments/{userId}/{oficinaId}")
+    public ResponseEntity<?> createAppointment(@PathVariable Long userId,
+                                               @PathVariable Long oficinaId,
+                                               @RequestBody Appointment appointment) {
+        Optional<UserProfile> userOpt = userProfileRepository.findById(userId);
+        if (userOpt.isEmpty()) return ResponseEntity.status(404).body("Usuário não encontrado");
+
+        Optional<Oficina> oficinaOpt = oficinaRepository.findById(oficinaId);
+        if (oficinaOpt.isEmpty()) return ResponseEntity.status(404).body("Oficina não encontrada");
+
+        appointment.setUserProfile(userOpt.get());
+        appointment.setOficina(oficinaOpt.get());
+
+        if (appointment.getStatus() == null || appointment.getStatus().isEmpty()) {
+            appointment.setStatus("PENDENTE");
+        }
+
+        Appointment saved = appointmentRepository.save(appointment);
+        return ResponseEntity.status(201).body(saved);
+    }
+
+    @GetMapping("api/appointments/user/{userId}")
+    public List<AppointmentDTO> getAppointmentsByUser(@PathVariable Long userId) {
+        List<Appointment> appointments = appointmentRepository.findByUserProfileId(userId);
+        return appointments.stream()
+                .map(AppointmentDTO::new)
+                .collect(Collectors.toList());
+    }
+
+    @GetMapping("api/appointments/oficina/{oficinaId}")
+    public List<Appointment> getAppointmentsByOficina(@PathVariable Long oficinaId) {
+        return appointmentRepository.findByOficinaId(oficinaId);
+    }
+
+    @PatchMapping("api/appointments/{appointmentId}/status")
+    public ResponseEntity<?> updateStatus(@PathVariable Long appointmentId,
+                                          @RequestBody Map<String, String> body) {
+        String newStatus = body.get("status");
+        List<String> validStatus = Arrays.asList("PENDENTE", "CONFIRMADO", "CANCELADO", "CONCLUIDO");
+
+        if (newStatus == null || !validStatus.contains(newStatus.toUpperCase())) {
+            return ResponseEntity.badRequest().body("Status inválido");
+        }
+
+        return appointmentRepository.findById(appointmentId)
+                .map(appointment -> {
+                    appointment.setStatus(newStatus.toUpperCase());
+                    appointmentRepository.save(appointment);
+                    return ResponseEntity.ok().build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("api/appointments/{appointmentId}")
+    public ResponseEntity<Void> deleteAppointment(@PathVariable Long appointmentId) {
+        if (!appointmentRepository.existsById(appointmentId)) {
+            return ResponseEntity.notFound().build();
+        }
+        appointmentRepository.deleteById(appointmentId);
         return ResponseEntity.noContent().build();
     }
 }
