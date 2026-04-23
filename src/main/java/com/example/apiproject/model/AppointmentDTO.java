@@ -1,11 +1,13 @@
 package com.example.apiproject.model;
 
+import java.util.UUID;
+
 public class AppointmentDTO {
     private Long id;
     private String servico;
     private String dataHora;
     private String status;
-    private Long oficinaId;
+    private UUID oficinaId;
     private String oficinaNome;
     private String oficinaEndereco;
 
@@ -37,7 +39,7 @@ public class AppointmentDTO {
         return status;
     }
 
-    public Long getOficinaId() {
+    public UUID getOficinaId() {
         return oficinaId;
     }
 

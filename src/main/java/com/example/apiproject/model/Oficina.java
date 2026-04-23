@@ -1,30 +1,33 @@
 package com.example.apiproject.model;
 
 import jakarta.persistence.*;
+import java.util.UUID;
 
 @Entity
 @Table(name = "oficinas")
 public class Oficina {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID id;
 
     private String nome;
     private String endereco;
+    @Column(unique = true)
     private String telefone;
     private Double latitude;
     private Double longitude;
     private String servicos;
 
     public Oficina() {
+        this.id = UUID.randomUUID(); // Initialize with a random UUID
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
