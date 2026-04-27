@@ -94,6 +94,13 @@ public class ApiController {
         }
     }
 
+    // ─── UserProfiles ────────────────────────────────────────────────────────
+
+    @GetMapping("api/users")
+    public List<UserProfile> getAllUsers() {
+        return userProfileRepository.findAll();
+    }
+
     // ─── Veículos ────────────────────────────────────────────────────────────
 
     @PostMapping("api/vehicles/{userId}")
@@ -145,7 +152,7 @@ public class ApiController {
     }
 
     @GetMapping("api/oficinas/{id}")
-    public ResponseEntity<Oficina> getOficinaById(@PathVariable Long id) {
+    public ResponseEntity<Oficina> getOficinaById(@PathVariable UUID id) {
         return oficinaRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -158,7 +165,7 @@ public class ApiController {
     }
 
     @PutMapping("api/oficinas/{id}")
-    public ResponseEntity<?> updateOficina(@PathVariable Long id, @RequestBody Oficina details) {
+    public ResponseEntity<?> updateOficina(@PathVariable UUID id, @RequestBody Oficina details) {
         return oficinaRepository.findById(id)
                 .map(oficina -> {
                     oficina.setNome(details.getNome());
@@ -174,7 +181,7 @@ public class ApiController {
     }
 
     @DeleteMapping("api/oficinas/{id}")
-    public ResponseEntity<Void> deleteOficina(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteOficina(@PathVariable UUID id) {
         if (!oficinaRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
@@ -186,7 +193,7 @@ public class ApiController {
 
     @PostMapping("api/appointments/{userId}/{oficinaId}")
     public ResponseEntity<?> createAppointment(@PathVariable Long userId,
-                                               @PathVariable Long oficinaId,
+                                               @PathVariable UUID oficinaId,
                                                @RequestBody Appointment appointment) {
         Optional<UserProfile> userOpt = userProfileRepository.findById(userId);
         if (userOpt.isEmpty()) return ResponseEntity.status(404).body("Usuário não encontrado");
@@ -214,8 +221,10 @@ public class ApiController {
     }
 
     @GetMapping("api/appointments/oficina/{oficinaId}")
-    public List<Appointment> getAppointmentsByOficina(@PathVariable Long oficinaId) {
-        return appointmentRepository.findByOficinaId(oficinaId);
+    public List<AppointmentDTO> getAppointmentsByOficina(@PathVariable UUID oficinaId) {
+        return appointmentRepository.findByOficinaId(oficinaId).stream()
+                .map(AppointmentDTO::new)
+                .collect(Collectors.toList());
     }
 
     @PatchMapping("api/appointments/{appointmentId}/status")
