@@ -37,8 +37,6 @@ public class ApiController {
     @Value("${google.client.id}")
     private String googleClientId;
 
-    // ─── Health Check ────────────────────────────────────────────────────────
-
     @GetMapping
     public Map<String, String> healthCheck() {
         Map<String, String> response = new HashMap<>();
@@ -46,8 +44,6 @@ public class ApiController {
         response.put("message", "API Spring Boot no Railway conectada ao PostgreSQL!");
         return response;
     }
-
-    // ─── Auth Google ─────────────────────────────────────────────────────────
 
     @PostMapping("api/auth/google")
     public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
@@ -94,14 +90,10 @@ public class ApiController {
         }
     }
 
-    // ─── UserProfiles ────────────────────────────────────────────────────────
-
     @GetMapping("api/users")
     public List<UserProfile> getAllUsers() {
         return userProfileRepository.findAll();
     }
-
-    // ─── Veículos ────────────────────────────────────────────────────────────
 
     @PostMapping("api/vehicles/{userId}")
     public ResponseEntity<?> addVehicle(@PathVariable Long userId,
@@ -143,8 +135,6 @@ public class ApiController {
         vehicleRepository.deleteById(vehicleId);
         return ResponseEntity.noContent().build();
     }
-
-    // ─── Oficinas ────────────────────────────────────────────────────────────
 
     @GetMapping("api/oficinas")
     public List<Oficina> getOficinas() {
@@ -188,8 +178,6 @@ public class ApiController {
         oficinaRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
-
-    // ─── Agendamentos (Appointments) ─────────────────────────────────────────
 
     @PostMapping("api/appointments/{userId}/{oficinaId}")
     public ResponseEntity<?> createAppointment(@PathVariable Long userId,

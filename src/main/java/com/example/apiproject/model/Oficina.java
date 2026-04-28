@@ -20,7 +20,7 @@ public class Oficina {
     private String servicos;
 
     public Oficina() {
-        this.id = UUID.randomUUID(); // Initialize with a random UUID
+        this.id = UUID.randomUUID();
     }
 
     public UUID getId() {
