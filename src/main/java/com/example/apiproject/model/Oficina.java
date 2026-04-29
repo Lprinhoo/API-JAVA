@@ -15,6 +15,7 @@ public class Oficina {
     private String endereco;
     @Column(unique = true)
     private String telefone;
+    private String email; // Added email field
     private Double latitude;
     private Double longitude;
     private String servicos;
@@ -53,6 +54,14 @@ public class Oficina {
 
     public void setTelefone(String telefone) {
         this.telefone = telefone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public Double getLatitude() {
