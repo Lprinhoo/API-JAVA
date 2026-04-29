@@ -22,37 +22,32 @@ import java.util.stream.Collectors;
 @RequestMapping("/")
 public class ApiController {
 
-    @Autowired
-    private UserProfileRepository userProfileRepository;
-
-    @Autowired
-    private VehicleRepository vehicleRepository;
-
-    @Autowired
-    private OficinaRepository oficinaRepository;
-
-    @Autowired
-    private AppointmentRepository appointmentRepository;
+    @Autowired private UserProfileRepository userProfileRepository;
+    @Autowired private VehicleRepository vehicleRepository;
+    @Autowired private OficinaRepository oficinaRepository;
+    @Autowired private AppointmentRepository appointmentRepository;
 
     @Value("${google.client.id}")
     private String googleClientId;
 
+    // -------------------------------------------------------------------------
+    // Health check
+    // -------------------------------------------------------------------------
     @GetMapping
     public Map<String, String> healthCheck() {
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "online");
-        response.put("message", "API Spring Boot no Railway conectada ao PostgreSQL!");
-        return response;
+        return Map.of("status", "online",
+                "message", "API Spring Boot no Railway conectada ao PostgreSQL!");
     }
 
+    // -------------------------------------------------------------------------
+    // Auth Google
+    // -------------------------------------------------------------------------
     @PostMapping("api/auth/google")
     public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
         try {
             String idToken = body.get("idToken");
-
-            if (idToken == null || idToken.isEmpty()) {
+            if (idToken == null || idToken.isEmpty())
                 return ResponseEntity.badRequest().body("idToken é obrigatório");
-            }
 
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(), new GsonFactory())
@@ -60,82 +55,81 @@ public class ApiController {
                     .build();
 
             GoogleIdToken token = verifier.verify(idToken);
-
-            if (token == null) {
+            if (token == null)
                 return ResponseEntity.status(401).body("Token inválido ou expirado");
-            }
 
             GoogleIdToken.Payload payload = token.getPayload();
-
             String googleId = payload.getSubject();
             String email    = payload.getEmail();
             String name     = (String) payload.get("name");
             String photoUrl = (String) payload.get("picture");
 
-            UserProfile user = userProfileRepository
-                    .findByGoogleId(googleId)
+            UserProfile user = userProfileRepository.findByGoogleId(googleId)
                     .orElse(new UserProfile());
 
             user.setGoogleId(googleId);
             user.setEmail(email);
             user.setName(name);
             user.setPhotoUrl(photoUrl);
-
             userProfileRepository.save(user);
 
             return ResponseEntity.ok(user);
-
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Erro interno: " + e.getMessage());
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Usuários
+    // -------------------------------------------------------------------------
     @GetMapping("api/users")
     public List<UserProfile> getAllUsers() {
         return userProfileRepository.findAll();
     }
 
+    // -------------------------------------------------------------------------
+    // Veículos
+    // -------------------------------------------------------------------------
     @PostMapping("api/vehicles/{userId}")
     public ResponseEntity<?> addVehicle(@PathVariable Long userId,
-                                         @RequestBody Vehicle vehicle) {
+                                        @RequestBody Vehicle vehicle) {
         return userProfileRepository.findById(userId)
                 .map(user -> {
                     vehicle.setUserProfile(user);
-                    Vehicle saved = vehicleRepository.save(vehicle);
-                    return ResponseEntity.status(201).<Object>body(saved);
+                    return ResponseEntity.status(201).<Object>body(vehicleRepository.save(vehicle));
                 })
                 .orElse(ResponseEntity.status(404).body("Usuário não encontrado"));
     }
 
     @GetMapping("api/vehicles/{userId}")
     public ResponseEntity<List<Vehicle>> getVehicles(@PathVariable Long userId) {
-        List<Vehicle> vehicles = vehicleRepository.findByUserProfileId(userId);
-        return ResponseEntity.ok(vehicles);
+        return ResponseEntity.ok(vehicleRepository.findByUserProfileId(userId));
     }
 
     @PutMapping("api/vehicles/{vehicleId}")
     public ResponseEntity<?> updateVehicle(@PathVariable Long vehicleId,
-                                            @RequestBody Vehicle vehicle) {
+                                           @RequestBody Vehicle vehicle) {
         return vehicleRepository.findById(vehicleId)
                 .map(existing -> {
                     existing.setMarca(vehicle.getMarca());
                     existing.setAno(vehicle.getAno());
                     existing.setPlaca(vehicle.getPlaca());
-                    Vehicle updated = vehicleRepository.save(existing);
-                    return ResponseEntity.ok().<Object>body(updated);
+                    return ResponseEntity.ok().<Object>body(vehicleRepository.save(existing));
                 })
                 .orElse(ResponseEntity.status(404).body("Veículo não encontrado"));
     }
 
     @DeleteMapping("api/vehicles/{vehicleId}")
     public ResponseEntity<?> deleteVehicle(@PathVariable Long vehicleId) {
-        if (!vehicleRepository.existsById(vehicleId)) {
+        if (!vehicleRepository.existsById(vehicleId))
             return ResponseEntity.status(404).body("Veículo não encontrado");
-        }
         vehicleRepository.deleteById(vehicleId);
         return ResponseEntity.noContent().build();
     }
 
+    // -------------------------------------------------------------------------
+    // Oficinas
+    // -------------------------------------------------------------------------
     @GetMapping("api/oficinas")
     public List<Oficina> getOficinas() {
         return oficinaRepository.findAll();
@@ -150,35 +144,37 @@ public class ApiController {
 
     @PostMapping("api/oficinas")
     public ResponseEntity<Oficina> createOficina(@RequestBody Oficina oficina) {
-        Oficina saved = oficinaRepository.save(oficina);
-        return ResponseEntity.status(201).body(saved);
+        return ResponseEntity.status(201).body(oficinaRepository.save(oficina));
     }
 
     @PutMapping("api/oficinas/{id}")
-    public ResponseEntity<?> updateOficina(@PathVariable UUID id, @RequestBody Oficina details) {
+    public ResponseEntity<?> updateOficina(@PathVariable UUID id,
+                                           @RequestBody Oficina details) {
         return oficinaRepository.findById(id)
                 .map(oficina -> {
                     oficina.setNome(details.getNome());
                     oficina.setEndereco(details.getEndereco());
                     oficina.setTelefone(details.getTelefone());
+                    oficina.setEmail(details.getEmail());          // CORRIGIDO: estava faltando
                     oficina.setLatitude(details.getLatitude());
                     oficina.setLongitude(details.getLongitude());
                     oficina.setServicos(details.getServicos());
-                    Oficina updated = oficinaRepository.save(oficina);
-                    return ResponseEntity.ok().<Object>body(updated);
+                    return ResponseEntity.ok().<Object>body(oficinaRepository.save(oficina));
                 })
                 .orElse(ResponseEntity.status(404).body("Oficina não encontrada"));
     }
 
     @DeleteMapping("api/oficinas/{id}")
     public ResponseEntity<Void> deleteOficina(@PathVariable UUID id) {
-        if (!oficinaRepository.existsById(id)) {
+        if (!oficinaRepository.existsById(id))
             return ResponseEntity.notFound().build();
-        }
         oficinaRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 
+    // -------------------------------------------------------------------------
+    // Agendamentos
+    // -------------------------------------------------------------------------
     @PostMapping("api/appointments/{userId}/{oficinaId}")
     public ResponseEntity<?> createAppointment(@PathVariable Long userId,
                                                @PathVariable UUID oficinaId,
@@ -192,18 +188,15 @@ public class ApiController {
         appointment.setUserProfile(userOpt.get());
         appointment.setOficina(oficinaOpt.get());
 
-        if (appointment.getStatus() == null || appointment.getStatus().isEmpty()) {
+        if (appointment.getStatus() == null || appointment.getStatus().isEmpty())
             appointment.setStatus("PENDENTE");
-        }
 
-        Appointment saved = appointmentRepository.save(appointment);
-        return ResponseEntity.status(201).body(saved);
+        return ResponseEntity.status(201).body(appointmentRepository.save(appointment));
     }
 
     @GetMapping("api/appointments/user/{userId}")
     public List<AppointmentDTO> getAppointmentsByUser(@PathVariable Long userId) {
-        List<Appointment> appointments = appointmentRepository.findByUserProfileId(userId);
-        return appointments.stream()
+        return appointmentRepository.findByUserProfileId(userId).stream()
                 .map(AppointmentDTO::new)
                 .collect(Collectors.toList());
     }
@@ -219,11 +212,10 @@ public class ApiController {
     public ResponseEntity<?> updateStatus(@PathVariable Long appointmentId,
                                           @RequestBody Map<String, String> body) {
         String newStatus = body.get("status");
-        List<String> validStatus = Arrays.asList("PENDENTE", "CONFIRMADO", "CANCELADO", "CONCLUIDO");
+        List<String> validStatus = List.of("PENDENTE", "CONFIRMADO", "CANCELADO", "CONCLUIDO");
 
-        if (newStatus == null || !validStatus.contains(newStatus.toUpperCase())) {
-            return ResponseEntity.badRequest().body("Status inválido");
-        }
+        if (newStatus == null || !validStatus.contains(newStatus.toUpperCase()))
+            return ResponseEntity.badRequest().body("Status inválido. Use: " + validStatus);
 
         return appointmentRepository.findById(appointmentId)
                 .map(appointment -> {
@@ -236,9 +228,8 @@ public class ApiController {
 
     @DeleteMapping("api/appointments/{appointmentId}")
     public ResponseEntity<Void> deleteAppointment(@PathVariable Long appointmentId) {
-        if (!appointmentRepository.existsById(appointmentId)) {
+        if (!appointmentRepository.existsById(appointmentId))
             return ResponseEntity.notFound().build();
-        }
         appointmentRepository.deleteById(appointmentId);
         return ResponseEntity.noContent().build();
     }
