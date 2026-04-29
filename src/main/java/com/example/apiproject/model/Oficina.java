@@ -1,7 +1,7 @@
 package com.example.apiproject.model;
 
 import jakarta.persistence.*;
-import java.util.List; // Import List
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -16,17 +16,16 @@ public class Oficina {
     private String endereco;
     @Column(unique = true)
     private String telefone;
-    private String email; // Added email field
+    private String email;
     private Double latitude;
     private Double longitude;
 
-    @ElementCollection // For collections of basic types or embeddable classes
+    @ElementCollection
     @CollectionTable(name = "oficina_servicos", joinColumns = @JoinColumn(name = "oficina_id"))
     @Column(name = "servico")
-    private List<String> servicos; // Changed to List<String>
+    private List<String> servicos;
 
     public Oficina() {
-        this.id = UUID.randomUUID();
     }
 
     public UUID getId() {
@@ -85,11 +84,11 @@ public class Oficina {
         this.longitude = longitude;
     }
 
-    public List<String> getServicos() { // Changed return type
+    public List<String> getServicos() {
         return servicos;
     }
 
-    public void setServicos(List<String> servicos) { // Changed parameter type
+    public void setServicos(List<String> servicos) {
         this.servicos = servicos;
     }
 }
