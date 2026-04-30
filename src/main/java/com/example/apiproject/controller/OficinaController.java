@@ -75,9 +75,10 @@ public class OficinaController {
                          .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // NOVO ENDPOINT: Simula o processamento de pagamento e inicia o registro da oficina
-    @PostMapping("/process-payment")
-    public ResponseEntity<Map<String, String>> processOficinaPayment() {
+    // Endpoint para iniciar o registro da oficina após o pagamento
+    // Este endpoint agora chama o serviço para gerar o token e criar a oficina pendente
+    @PostMapping("/initiate-registration") // Corrigido para o endpoint correto
+    public ResponseEntity<Map<String, String>> initiateOficinaRegistration() { // Nome do método corrigido
         // Aqui você integraria com um gateway de pagamento real.
         // Por enquanto, vamos simular um pagamento bem-sucedido.
 
