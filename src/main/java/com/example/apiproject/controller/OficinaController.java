@@ -8,6 +8,7 @@ import com.example.apiproject.repository.ClienteRepository;
 import com.example.apiproject.repository.OficinaRepository;
 import com.example.apiproject.repository.OficinaUserRepository;
 import com.example.apiproject.dto.OficinaRegistrationCompleteRequest; // Importar o DTO
+import com.example.apiproject.service.OficinaService; // Importar o serviço
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,9 @@ public class OficinaController {
 
     @Autowired
     private OficinaUserRepository oficinaUserRepository;
+
+    @Autowired
+    private OficinaService oficinaService; // Injetar o serviço
 
     private OficinaUser getAuthenticatedOficinaUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -71,22 +75,15 @@ public class OficinaController {
                          .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // Endpoint para iniciar o registro da oficina após o pagamento
-    @PostMapping("/initiate-registration")
-    public ResponseEntity<Map<String, String>> initiateOficinaRegistration() {
-        String registrationToken = UUID.randomUUID().toString();
+    // NOVO ENDPOINT: Simula o processamento de pagamento e inicia o registro da oficina
+    @PostMapping("/process-payment")
+    public ResponseEntity<Map<String, String>> processOficinaPayment() {
+        // Aqui você integraria com um gateway de pagamento real.
+        // Por enquanto, vamos simular um pagamento bem-sucedido.
 
-        Oficina newOficina = new Oficina();
-        newOficina.setNome("Oficina Pendente de Cadastro"); // Nome temporário
-        newOficina.setRegistrationToken(registrationToken);
-        newOficina.setRegistrationStatus(OficinaRegistrationStatus.PAID_PENDING_DETAILS);
-
-        oficinaRepository.save(newOficina);
-
-        Map<String, String> response = new HashMap<>();
-        response.put("registrationToken", registrationToken);
-        response.put("message", "Registro de oficina iniciado. Use o token para completar o cadastro.");
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        // Após a confirmação do pagamento pelo gateway:
+        Map<String, String> registrationInfo = oficinaService.initiateOficinaRegistration();
+        return ResponseEntity.status(HttpStatus.CREATED).body(registrationInfo);
     }
 
     // Endpoint para completar o registro da oficina
@@ -137,7 +134,7 @@ public class OficinaController {
 
         if (oficinaOpt.isPresent() && clienteOpt.isPresent()) {
             Oficina oficina = oficinaOpt.get();
-            oficina.getClientes().add(clienteOpt.get()); // Corrigido aqui: usar clienteOpt.get()
+            oficina.getClientes().add(clienteOpt.get());
             oficinaRepository.save(oficina);
             return ResponseEntity.ok("Cliente vinculado com sucesso!");
         } else {
