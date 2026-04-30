@@ -2,10 +2,12 @@ package com.example.apiproject.controller;
 
 import com.example.apiproject.model.Cliente;
 import com.example.apiproject.model.Oficina;
+import com.example.apiproject.model.OficinaRegistrationStatus;
 import com.example.apiproject.model.OficinaUser;
 import com.example.apiproject.repository.ClienteRepository;
 import com.example.apiproject.repository.OficinaRepository;
 import com.example.apiproject.repository.OficinaUserRepository;
+import com.example.apiproject.dto.OficinaRegistrationCompleteRequest; // Importar o DTO
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +29,7 @@ public class OficinaController {
 
     @Autowired
     private OficinaUserRepository oficinaUserRepository;
+    private Cliente cliente;
 
     private OficinaUser getAuthenticatedOficinaUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -43,7 +46,8 @@ public class OficinaController {
         if (oficinaUser != null) {
             return ResponseEntity.ok(Collections.singletonList(oficinaUser.getOficina()));
         }
-        return ResponseEntity.ok(oficinaRepository.findAll());
+        // Retorna apenas oficinas ativas para usuários não autenticados ou outros casos
+        return ResponseEntity.ok(oficinaRepository.findByRegistrationStatus(OficinaRegistrationStatus.ACTIVE));
     }
 
     @GetMapping("/{id}")
@@ -68,10 +72,59 @@ public class OficinaController {
                          .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PostMapping
-    public ResponseEntity<Oficina> createOficina(@RequestBody Oficina oficina) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(oficinaRepository.save(oficina));
+    // Endpoint para iniciar o registro da oficina após o pagamento
+    @PostMapping("/initiate-registration")
+    public ResponseEntity<Map<String, String>> initiateOficinaRegistration() {
+        String registrationToken = UUID.randomUUID().toString();
+
+        Oficina newOficina = new Oficina();
+        newOficina.setNome("Oficina Pendente de Cadastro"); // Nome temporário
+        newOficina.setRegistrationToken(registrationToken);
+        newOficina.setRegistrationStatus(OficinaRegistrationStatus.PAID_PENDING_DETAILS);
+
+        oficinaRepository.save(newOficina);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("registrationToken", registrationToken);
+        response.put("message", "Registro de oficina iniciado. Use o token para completar o cadastro.");
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
+    // Endpoint para completar o registro da oficina
+    @PostMapping("/complete-registration")
+    public ResponseEntity<?> completeOficinaRegistration(@RequestBody OficinaRegistrationCompleteRequest request) {
+        Optional<Oficina> oficinaOpt = oficinaRepository.findByRegistrationToken(request.getRegistrationToken());
+
+        if (oficinaOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Token de registro inválido ou não encontrado.");
+        }
+
+        Oficina oficina = oficinaOpt.get();
+
+        // Verifica se a oficina já foi ativada
+        if (oficina.getRegistrationStatus() == OficinaRegistrationStatus.ACTIVE) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Esta oficina já foi registrada e está ativa.");
+        }
+        
+        // Atualiza os detalhes da oficina
+        oficina.setNome(request.getNome());
+        oficina.setServicos(request.getServicos());
+        oficina.setEndereco(request.getEndereco());
+        oficina.setLatitude(request.getLatitude());
+        oficina.setLongitude(request.getLongitude());
+        oficina.setTelefone(request.getTelefone());
+        oficina.setEmail(request.getEmail());
+        oficina.setHorarioFuncionamento(request.getHorarioFuncionamento());
+        oficina.setWebsite(request.getWebsite());
+        oficina.setFormasPagamento(request.getFormasPagamento());
+        oficina.setEspecialidades(request.getEspecialidades());
+        oficina.setRegistrationStatus(OficinaRegistrationStatus.ACTIVE); // Ativa a oficina
+
+        oficinaRepository.save(oficina);
+
+        return ResponseEntity.ok("Registro da oficina concluído com sucesso! ID da Oficina: " + oficina.getId());
+    }
+
 
     @PostMapping("/{oficinaId}/vincular-cliente/{clienteId}")
     public ResponseEntity<?> vincularCliente(@PathVariable Long oficinaId, @PathVariable Long clienteId) {
@@ -85,7 +138,6 @@ public class OficinaController {
 
         if (oficinaOpt.isPresent() && clienteOpt.isPresent()) {
             Oficina oficina = oficinaOpt.get();
-            Cliente cliente = clienteOpt.get();
             oficina.getClientes().add(cliente);
             oficinaRepository.save(oficina);
             return ResponseEntity.ok("Cliente vinculado com sucesso!");

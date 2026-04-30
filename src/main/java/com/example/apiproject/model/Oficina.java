@@ -39,6 +39,12 @@ public class Oficina {
 
     private String especialidades;
 
+    @Column(unique = true) // O token de registro deve ser único
+    private String registrationToken;
+
+    @Enumerated(EnumType.STRING)
+    private OficinaRegistrationStatus registrationStatus;
+
     @ManyToMany
     @JoinTable(
         name = "oficina_clientes",
@@ -49,11 +55,14 @@ public class Oficina {
     private Set<Cliente> clientes = new HashSet<>();
 
     // Construtores
-    public Oficina() {}
+    public Oficina() {
+        this.registrationStatus = OficinaRegistrationStatus.PENDING_PAYMENT; // Estado inicial
+    }
 
     public Oficina(String nome, String servicos, String endereco, Double latitude, Double longitude, 
                    String telefone, String email, String horarioFuncionamento, String website, 
                    String formasPagamento, String especialidades) {
+        this(); // Chama o construtor padrão para inicializar registrationStatus
         this.nome = nome;
         this.servicos = servicos;
         this.endereco = endereco;
@@ -162,6 +171,22 @@ public class Oficina {
 
     public void setEspecialidades(String especialidades) {
         this.especialidades = especialidades;
+    }
+
+    public String getRegistrationToken() {
+        return registrationToken;
+    }
+
+    public void setRegistrationToken(String registrationToken) {
+        this.registrationToken = registrationToken;
+    }
+
+    public OficinaRegistrationStatus getRegistrationStatus() {
+        return registrationStatus;
+    }
+
+    public void setRegistrationStatus(OficinaRegistrationStatus registrationStatus) {
+        this.registrationStatus = registrationStatus;
     }
 
     public Set<Cliente> getClientes() {

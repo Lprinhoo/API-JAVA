@@ -13,7 +13,7 @@ import java.util.Map;
 @Component
 public class JwtUtils {
 
-    @Value("${app.jwtSecret:minhaChaveSecretaMuitoLongaEMuitoSeguraParaOJWT}")
+    @Value("${APP_JWTSECRET:minhaChaveSecretaMuitoLongaEMuitoSeguraParaOJWT}")
     private String jwtSecret;
 
     @Value("${app.jwtExpirationMs:86400000}")
