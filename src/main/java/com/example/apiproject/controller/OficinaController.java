@@ -29,7 +29,6 @@ public class OficinaController {
 
     @Autowired
     private OficinaUserRepository oficinaUserRepository;
-    private Cliente cliente;
 
     private OficinaUser getAuthenticatedOficinaUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -138,7 +137,7 @@ public class OficinaController {
 
         if (oficinaOpt.isPresent() && clienteOpt.isPresent()) {
             Oficina oficina = oficinaOpt.get();
-            oficina.getClientes().add(cliente);
+            oficina.getClientes().add(clienteOpt.get()); // Corrigido aqui: usar clienteOpt.get()
             oficinaRepository.save(oficina);
             return ResponseEntity.ok("Cliente vinculado com sucesso!");
         } else {
