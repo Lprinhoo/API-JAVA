@@ -54,6 +54,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/clientes/google-login").permitAll() // Permitir login do Google para clientes
                         .requestMatchers("/oficina-users/register", "/oficina-users/login").permitAll() // Permitir registro e login de oficina
+                        .requestMatchers("/oficinas/initiate-registration", "/oficinas/complete-registration").permitAll() // Permitir iniciar e completar registro de oficina
                         .requestMatchers("/").permitAll() // Permitir acesso ao health check
                         .anyRequest().authenticated() // Todas as outras requisições exigem autenticação
                 );
