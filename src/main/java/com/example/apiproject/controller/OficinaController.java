@@ -13,10 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @RestController
 @RequestMapping("/oficinas")
@@ -40,23 +37,12 @@ public class OficinaController {
         return null;
     }
 
-    private Cliente getAuthenticatedCliente() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            String username = authentication.getName();
-            return clienteRepository.findByEmail(username).orElse(null);
-        }
-        return null;
-    }
-
     @GetMapping
     public ResponseEntity<List<Oficina>> getAllOficinas() {
         OficinaUser oficinaUser = getAuthenticatedOficinaUser();
         if (oficinaUser != null) {
-            // Se for usuário de oficina, retorna apenas a dele
             return ResponseEntity.ok(Collections.singletonList(oficinaUser.getOficina()));
         }
-        // Clientes e outros podem ver todas
         return ResponseEntity.ok(oficinaRepository.findAll());
     }
 
@@ -102,7 +88,7 @@ public class OficinaController {
             Cliente cliente = clienteOpt.get();
             oficina.getClientes().add(cliente);
             oficinaRepository.save(oficina);
-            return ResponseEntity.ok("Cliente vinculado com sucesso à oficina!");
+            return ResponseEntity.ok("Cliente vinculado com sucesso!");
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -123,9 +109,9 @@ public class OficinaController {
             Cliente cliente = clienteOpt.get();
             if (oficina.getClientes().remove(cliente)) {
                 oficinaRepository.save(oficina);
-                return ResponseEntity.ok("Cliente desvinculado com sucesso da oficina!");
+                return ResponseEntity.ok("Cliente desvinculado com sucesso!");
             } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Cliente não estava vinculado a esta oficina.");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Vínculo não encontrado.");
             }
         } else {
             return ResponseEntity.notFound().build();
@@ -133,7 +119,7 @@ public class OficinaController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Oficina> updateOficina(@PathVariable Long id, @RequestBody Oficina oficinaDetails) {
+    public ResponseEntity<Oficina> updateOficina(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
         OficinaUser oficinaUser = getAuthenticatedOficinaUser();
         if (oficinaUser == null || !oficinaUser.getOficina().getId().equals(id)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -142,17 +128,26 @@ public class OficinaController {
         Optional<Oficina> oficinaOpt = oficinaRepository.findById(id);
         if (oficinaOpt.isPresent()) {
             Oficina existingOficina = oficinaOpt.get();
-            existingOficina.setNome(oficinaDetails.getNome());
-            existingOficina.setServicos(oficinaDetails.getServicos());
-            existingOficina.setEndereco(oficinaDetails.getEndereco());
-            existingOficina.setLatitude(oficinaDetails.getLatitude());
-            existingOficina.setLongitude(oficinaDetails.getLongitude());
-            existingOficina.setTelefone(oficinaDetails.getTelefone());
-            existingOficina.setEmail(oficinaDetails.getEmail());
-            existingOficina.setHorarioFuncionamento(oficinaDetails.getHorarioFuncionamento());
-            existingOficina.setWebsite(oficinaDetails.getWebsite());
-            existingOficina.setFormasPagamento(oficinaDetails.getFormasPagamento());
-            existingOficina.setEspecialidades(oficinaDetails.getEspecialidades());
+            
+            if (updates.containsKey("nome")) existingOficina.setNome((String) updates.get("nome"));
+            if (updates.containsKey("servicos")) existingOficina.setServicos((String) updates.get("servicos"));
+            if (updates.containsKey("endereco")) existingOficina.setEndereco((String) updates.get("endereco"));
+            if (updates.containsKey("latitude")) existingOficina.setLatitude(Double.valueOf(updates.get("latitude").toString()));
+            if (updates.containsKey("longitude")) existingOficina.setLongitude(Double.valueOf(updates.get("longitude").toString()));
+            if (updates.containsKey("telefone")) existingOficina.setTelefone((String) updates.get("telefone"));
+            if (updates.containsKey("email")) existingOficina.setEmail((String) updates.get("email"));
+            
+            // Mapeamento específico do campo 'horarios' do cliente desktop para 'horarioFuncionamento' no banco
+            if (updates.containsKey("horarios")) {
+                existingOficina.setHorarioFuncionamento((String) updates.get("horarios"));
+            } else if (updates.containsKey("horarioFuncionamento")) {
+                existingOficina.setHorarioFuncionamento((String) updates.get("horarioFuncionamento"));
+            }
+            
+            if (updates.containsKey("website")) existingOficina.setWebsite((String) updates.get("website"));
+            if (updates.containsKey("formasPagamento")) existingOficina.setFormasPagamento((String) updates.get("formasPagamento"));
+            if (updates.containsKey("especialidades")) existingOficina.setEspecialidades((String) updates.get("especialidades"));
+
             return ResponseEntity.ok(oficinaRepository.save(existingOficina));
         } else {
             return ResponseEntity.notFound().build();

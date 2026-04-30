@@ -1,7 +1,9 @@
 package com.example.apiproject.controller;
 
 import com.example.apiproject.model.Cliente;
+import com.example.apiproject.model.OficinaUser;
 import com.example.apiproject.repository.ClienteRepository;
+import com.example.apiproject.repository.OficinaUserRepository;
 import com.example.apiproject.security.JwtUtils;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -11,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -25,10 +29,23 @@ public class ClienteController {
     private ClienteRepository clienteRepository;
 
     @Autowired
+    private OficinaUserRepository oficinaUserRepository; // Injetado para segurança
+
+    @Autowired
     private JwtUtils jwtUtils;
 
     @Value("${google.client.id}")
     private String googleClientId;
+
+    // Método de segurança copiado de OficinaController
+    private OficinaUser getAuthenticatedOficinaUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            String username = authentication.getName();
+            return oficinaUserRepository.findByUsername(username).orElse(null);
+        }
+        return null;
+    }
 
     @GetMapping
     public List<Cliente> getAllClientes() {
@@ -39,6 +56,18 @@ public class ClienteController {
     public ResponseEntity<Cliente> getClienteById(@PathVariable Long id) {
         Optional<Cliente> cliente = clienteRepository.findById(id);
         return cliente.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // Novo endpoint para buscar clientes por ID da oficina
+    @GetMapping("/oficina/{oficinaId}")
+    public ResponseEntity<List<Cliente>> getClientesByOficinaId(@PathVariable Long oficinaId) {
+        OficinaUser oficinaUser = getAuthenticatedOficinaUser();
+        // Verifica se o usuário autenticado pertence à oficina que está sendo consultada
+        if (oficinaUser == null || !oficinaUser.getOficina().getId().equals(oficinaId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        List<Cliente> clientes = clienteRepository.findByOficinas_Id(oficinaId);
+        return ResponseEntity.ok(clientes);
     }
 
     @PostMapping("/google-login")
@@ -70,9 +99,9 @@ public class ClienteController {
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("token", jwt);
-                response.put("clienteId", cliente.getId()); // Adiciona clienteId na resposta
-                response.put("username", cliente.getEmail()); // Adiciona username na resposta
-                response.put("userType", "CLIENTE"); // Adiciona userType na resposta
+                response.put("clienteId", cliente.getId());
+                response.put("username", cliente.getEmail());
+                response.put("userType", "CLIENTE");
 
                 return ResponseEntity.ok(response);
             } else {
