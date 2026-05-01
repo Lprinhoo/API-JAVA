@@ -1,10 +1,11 @@
 package com.example.apiproject.controller;
 
 import com.example.apiproject.model.Cliente;
-import com.example.apiproject.model.OficinaUser;
+import com.example.apiproject.model.OficinaUser; // Manter import para outros métodos se necessário
 import com.example.apiproject.repository.ClienteRepository;
-import com.example.apiproject.repository.OficinaUserRepository;
+import com.example.apiproject.repository.OficinaUserRepository; // Manter import para outros métodos se necessário
 import com.example.apiproject.security.JwtUtils;
+import com.example.apiproject.security.OficinaUserDetails; // Importar a nova classe
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -29,7 +30,7 @@ public class ClienteController {
     private ClienteRepository clienteRepository;
 
     @Autowired
-    private OficinaUserRepository oficinaUserRepository; // Injetado para segurança
+    private OficinaUserRepository oficinaUserRepository; // Pode ser removido se não for mais usado em outros métodos
 
     @Autowired
     private JwtUtils jwtUtils;
@@ -37,7 +38,9 @@ public class ClienteController {
     @Value("${google.client.id}")
     private String googleClientId;
 
-    // Método de segurança copiado de OficinaController
+    // O método getAuthenticatedOficinaUser() será removido ou adaptado se ainda for necessário em outros contextos
+    // Por enquanto, vamos removê-lo para o contexto de getClientesByOficinaId
+    /*
     private OficinaUser getAuthenticatedOficinaUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
@@ -46,9 +49,11 @@ public class ClienteController {
         }
         return null;
     }
+    */
 
     @GetMapping
     public List<Cliente> getAllClientes() {
+        // Este endpoint pode precisar de autorização também, dependendo da regra de negócio
         return clienteRepository.findAll();
     }
 
@@ -61,11 +66,26 @@ public class ClienteController {
     // Novo endpoint para buscar clientes por ID da oficina
     @GetMapping("/oficina/{oficinaId}")
     public ResponseEntity<List<Cliente>> getClientesByOficinaId(@PathVariable Long oficinaId) {
-        OficinaUser oficinaUser = getAuthenticatedOficinaUser();
-        // Verifica se o usuário autenticado pertence à oficina que está sendo consultada
-        if (oficinaUser == null || !oficinaUser.getOficina().getId().equals(oficinaId)) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        // Verifica se o principal é um OficinaUserDetails
+        if (authentication.getPrincipal() instanceof OficinaUserDetails) {
+            OficinaUserDetails userDetails = (OficinaUserDetails) authentication.getPrincipal();
+            // Verifica se o ID da oficina do usuário autenticado corresponde ao ID da oficina na URL
+            if (!userDetails.getOficinaId().equals(oficinaId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        } else {
+            // Se o usuário não for um OficinaUserDetails (ex: Cliente autenticado via Google),
+            // ou se for um tipo de usuário não autorizado para este endpoint, nega o acesso.
+            // Você pode ajustar esta lógica conforme seus requisitos de segurança.
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+
         List<Cliente> clientes = clienteRepository.findByOficinas_Id(oficinaId);
         return ResponseEntity.ok(clientes);
     }

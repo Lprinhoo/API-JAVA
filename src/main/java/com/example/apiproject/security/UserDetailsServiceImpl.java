@@ -2,7 +2,7 @@ package com.example.apiproject.security;
 
 import com.example.apiproject.model.Cliente;
 import com.example.apiproject.model.OficinaUser;
-import com.example.apiproject.model.OficinaRegistrationStatus; // Importar o enum
+import com.example.apiproject.model.OficinaRegistrationStatus;
 import com.example.apiproject.repository.ClienteRepository;
 import com.example.apiproject.repository.OficinaUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,9 +33,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             OficinaUser oficinaUser = oficinaUserOptional.get();
             // Verifica o status de registro da oficina associada
             if (oficinaUser.getOficina().getRegistrationStatus() == OficinaRegistrationStatus.ACTIVE) {
-                return new User(oficinaUser.getUsername(),
-                               oficinaUser.getPassword(),
-                               Collections.singletonList(new SimpleGrantedAuthority("ROLE_OFICINA"))); // Atribui ROLE_OFICINA se ativa
+                // Retorna uma instância de OficinaUserDetails
+                return OficinaUserDetails.build(oficinaUser);
             } else {
                 // Se a oficina não estiver ativa, nega o login
                 throw new UsernameNotFoundException("Oficina associada ao usuário não está ativa.");
