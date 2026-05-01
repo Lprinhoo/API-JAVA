@@ -2,6 +2,7 @@ package com.example.apiproject.security;
 
 import com.example.apiproject.model.Cliente;
 import com.example.apiproject.model.OficinaUser;
+import com.example.apiproject.model.OficinaRegistrationStatus; // Importar o enum
 import com.example.apiproject.repository.ClienteRepository;
 import com.example.apiproject.repository.OficinaUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,19 +28,26 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         // Tenta encontrar na tabela de usuários de oficina
-        Optional<OficinaUser> oficinaUser = oficinaUserRepository.findByUsername(username);
-        if (oficinaUser.isPresent()) {
-            return new User(oficinaUser.get().getUsername(), 
-                           oficinaUser.get().getPassword(), 
-                           Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))); // Papel genérico
+        Optional<OficinaUser> oficinaUserOptional = oficinaUserRepository.findByUsername(username);
+        if (oficinaUserOptional.isPresent()) {
+            OficinaUser oficinaUser = oficinaUserOptional.get();
+            // Verifica o status de registro da oficina associada
+            if (oficinaUser.getOficina().getRegistrationStatus() == OficinaRegistrationStatus.ACTIVE) {
+                return new User(oficinaUser.getUsername(),
+                               oficinaUser.getPassword(),
+                               Collections.singletonList(new SimpleGrantedAuthority("ROLE_OFICINA"))); // Atribui ROLE_OFICINA se ativa
+            } else {
+                // Se a oficina não estiver ativa, nega o login
+                throw new UsernameNotFoundException("Oficina associada ao usuário não está ativa.");
+            }
         }
 
-        // Se não encontrar, tenta encontrar na tabela de clientes
+        // Se não encontrar como OficinaUser, tenta encontrar na tabela de clientes
         Optional<Cliente> cliente = clienteRepository.findByEmail(username);
         if (cliente.isPresent()) {
-            return new User(cliente.get().getEmail(), 
+            return new User(cliente.get().getEmail(),
                            "GOOGLE_AUTH", // Senha placeholder para clientes Google
-                           Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))); // Papel genérico
+                           Collections.singletonList(new SimpleGrantedAuthority("ROLE_CLIENTE"))); // Atribui ROLE_CLIENTE
         }
 
         throw new UsernameNotFoundException("Usuário não encontrado: " + username);
